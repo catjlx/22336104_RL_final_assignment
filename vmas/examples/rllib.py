@@ -14,18 +14,17 @@ from ray.rllib import BaseEnv, Policy, RolloutWorker
 from ray.rllib.agents.ppo import PPOTrainer
 from ray.rllib.algorithms.callbacks import DefaultCallbacks, MultiCallbacks
 from ray.rllib.evaluation import Episode, MultiAgentEpisode
-from ray.rllib.utils.typing import PolicyID
 from ray.tune import register_env
 from ray.tune.integration.wandb import WandbLoggerCallback
 
 from vmas import make_env
 from vmas.simulator.environment import Wrapper
 
+
 scenario_name = "balance"
 
 # Scenario specific variables.
-# When modifying this also modify env_config and env_creator
-n_agents = 4
+n_agents = 3
 
 # Common variables
 continuous_actions = True
@@ -34,7 +33,17 @@ num_vectorized_envs = 96
 num_workers = 5
 vmas_device = "cpu"  # or cuda
 
+MARL_ALGO = "IPPO"
+# MARL_ALGO = "CPPO"
+# MARL_ALGO = "MAPPO"
 
+# VMAS + Wrapper.RLLIB只能使用单 policy PPO
+# 三种算法区别仅体现在critic设计
+
+print(f"Using MARL algorithm: {MARL_ALGO}")
+
+
+# 根据配置初始化场景，返回 RLlib 兼容的向量化环境
 def env_creator(config: Dict):
     env = make_env(
         scenario=config["scenario_name"],
@@ -49,13 +58,16 @@ def env_creator(config: Dict):
     return env
 
 
+# 初始化 Ray
 if not ray.is_initialized():
     ray.init()
     print("Ray init!")
+
 register_env(scenario_name, lambda config: env_creator(config))
 
-
+# 回调：记录评估指标
 class EvaluationCallbacks(DefaultCallbacks):
+    # 记录每个智能体的额外信息，用于训练监控
     def on_episode_step(
         self,
         *,
@@ -67,17 +79,16 @@ class EvaluationCallbacks(DefaultCallbacks):
         info = episode.last_info_for()
         for a_key in info.keys():
             for b_key in info[a_key]:
-                try:
-                    episode.user_data[f"{a_key}/{b_key}"].append(info[a_key][b_key])
-                except KeyError:
-                    episode.user_data[f"{a_key}/{b_key}"] = [info[a_key][b_key]]
+                episode.user_data.setdefault(
+                    f"{a_key}/{b_key}", []
+                ).append(info[a_key][b_key])
 
     def on_episode_end(
         self,
         *,
         worker: RolloutWorker,
         base_env: BaseEnv,
-        policies: Dict[str, Policy],
+        policies,
         episode: MultiAgentEpisode,
         **kwargs,
     ):
@@ -87,32 +98,16 @@ class EvaluationCallbacks(DefaultCallbacks):
                 metric = np.array(episode.user_data[f"{a_key}/{b_key}"])
                 episode.custom_metrics[f"{a_key}/{b_key}"] = np.sum(metric).item()
 
-
+# 渲染视频
 class RenderingCallbacks(DefaultCallbacks):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.frames = []
 
-    def on_episode_step(
-        self,
-        *,
-        worker: RolloutWorker,
-        base_env: BaseEnv,
-        policies: Optional[Dict[PolicyID, Policy]] = None,
-        episode: Episode,
-        **kwargs,
-    ) -> None:
+    def on_episode_step(self, *, worker, base_env, episode, **kwargs):
         self.frames.append(base_env.vector_env.try_render_at(mode="rgb_array"))
 
-    def on_episode_end(
-        self,
-        *,
-        worker: RolloutWorker,
-        base_env: BaseEnv,
-        policies: Dict[PolicyID, Policy],
-        episode: Episode,
-        **kwargs,
-    ) -> None:
+    def on_episode_end(self, *, worker, base_env, episode, **kwargs):
         vid = np.transpose(self.frames, (0, 3, 1, 2))
         episode.media["rendering"] = wandb.Video(
             vid, fps=1 / base_env.vector_env.env.world.dt, format="mp4"
@@ -122,71 +117,66 @@ class RenderingCallbacks(DefaultCallbacks):
 
 def train():
     RLLIB_NUM_GPUS = int(os.environ.get("RLLIB_NUM_GPUS", "0"))
-    num_gpus = 0.001 if RLLIB_NUM_GPUS > 0 else 0  # Driver GPU
-    num_gpus_per_worker = (
-        (RLLIB_NUM_GPUS - num_gpus) / (num_workers + 1) if vmas_device == "cuda" else 0
-    )
+    num_gpus = 0.001 if RLLIB_NUM_GPUS > 0 else 0
+    num_gpus_per_worker = 0
 
     tune.run(
         PPOTrainer,
-        stop={"training_iteration": 5000},
+        stop={"training_iteration": 400},
         checkpoint_freq=1,
         keep_checkpoints_num=2,
         checkpoint_at_end=True,
-        checkpoint_score_attr="episode_reward_mean",
-        callbacks=[
-            WandbLoggerCallback(
-                project=f"{scenario_name}",
-                api_key="",
-            )
-        ],
+
         config={
-            "seed": 0,
             "framework": "torch",
             "env": scenario_name,
-            "kl_coeff": 0.01,
-            "kl_target": 0.01,
+
+            # PPO 超参数
+            "lr": 5e-5,
+            "gamma": 0.99,
             "lambda": 0.9,
             "clip_param": 0.2,
-            "vf_loss_coeff": 1,
+            "entropy_coeff": 0.0,
+            "vf_loss_coeff": 1.0,
             "vf_clip_param": float("inf"),
-            "entropy_coeff": 0,
+            "kl_coeff": 0.01,
+            "kl_target": 0.01,
+
+            # batch
             "train_batch_size": 60000,
             "rollout_fragment_length": 125,
             "sgd_minibatch_size": 4096,
             "num_sgd_iter": 40,
-            "num_gpus": num_gpus,
+
+            # resources
             "num_workers": num_workers,
-            "num_gpus_per_worker": num_gpus_per_worker,
             "num_envs_per_worker": num_vectorized_envs,
-            "lr": 5e-5,
-            "gamma": 0.99,
-            "use_gae": True,
-            "use_critic": True,
-            "batch_mode": "truncate_episodes",
+            "num_gpus": num_gpus,
+            "num_gpus_per_worker": 0,
+
+            # env
             "env_config": {
                 "device": vmas_device,
                 "num_envs": num_vectorized_envs,
                 "scenario_name": scenario_name,
                 "continuous_actions": continuous_actions,
                 "max_steps": max_steps,
-                # Scenario specific variables
                 "scenario_config": {
                     "n_agents": n_agents,
                 },
             },
+
+            "callbacks": EvaluationCallbacks,
+            
+            # evaluation（不渲染）
             "evaluation_interval": 5,
-            "evaluation_duration": 1,
             "evaluation_num_workers": 1,
             "evaluation_parallel_to_training": True,
             "evaluation_config": {
                 "num_envs_per_worker": 1,
-                "env_config": {
-                    "num_envs": 1,
-                },
-                "callbacks": MultiCallbacks([RenderingCallbacks, EvaluationCallbacks]),
+                "env_config": {"num_envs": 1},
+                "callbacks": EvaluationCallbacks,
             },
-            "callbacks": EvaluationCallbacks,
         },
     )
 

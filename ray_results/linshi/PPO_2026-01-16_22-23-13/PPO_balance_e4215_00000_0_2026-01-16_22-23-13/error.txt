@@ -1,0 +1,32 @@
+Failure # 1 (occurred at 2026-01-16_22-23-50)
+[36mray::PPO.train()[39m (pid=1968492, ip=172.18.166.65, repr=PPO)
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 355, in train
+    raise skipped from exception_cause(skipped)
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 352, in train
+    result = self.step()
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/algorithms/algorithm.py", line 772, in step
+    results, train_iter_ctx = self._run_one_training_iteration()
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/algorithms/algorithm.py", line 2953, in _run_one_training_iteration
+    num_recreated += self.try_recover_from_step_attempt(
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/algorithms/algorithm.py", line 2617, in try_recover_from_step_attempt
+    raise error
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/algorithms/algorithm.py", line 2948, in _run_one_training_iteration
+    results = self.training_step()
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/algorithms/ppo/ppo.py", line 408, in training_step
+    train_batch = synchronous_parallel_sample(
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/execution/rollout_ops.py", line 100, in synchronous_parallel_sample
+    sample_batches = ray.get(
+ray.exceptions.RayTaskError(AttributeError): [36mray::RolloutWorker.sample()[39m (pid=1968991, ip=172.18.166.65, repr=<ray.rllib.evaluation.rollout_worker.RolloutWorker object at 0x7ee3b5ee8850>)
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/evaluation/rollout_worker.py", line 828, in sample
+    batches = [self.input_reader.next()]
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/evaluation/sampler.py", line 92, in next
+    batches = [self.get_data()]
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/evaluation/sampler.py", line 285, in get_data
+    item = next(self._env_runner)
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/evaluation/sampler.py", line 671, in _env_runner
+    active_envs, to_eval, outputs = _process_observations(
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/evaluation/sampler.py", line 1007, in _process_observations
+    callbacks.on_episode_step(
+  File "/home/catjlx/VectorizedMultiAgentSimulator/vmas/examples/rllib_rd_mappo.py", line 80, in on_episode_step
+    rewards = episode.last_raw_reward_for()
+AttributeError: 'Episode' object has no attribute 'last_raw_reward_for'

@@ -1,0 +1,60 @@
+Failure # 1 (occurred at 2026-01-16_22-12-52)
+Traceback (most recent call last):
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/tune/execution/ray_trial_executor.py", line 1050, in get_next_executor_event
+    future_result = ray.get(ready_future)
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/_private/client_mode_hook.py", line 105, in wrapper
+    return func(*args, **kwargs)
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/_private/worker.py", line 2291, in get
+    raise value
+ray.exceptions.RayActorError: The actor died because of an error raised in its creation task, [36mray::PPO.__init__()[39m (pid=1950979, ip=172.18.166.65, repr=PPO)
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/evaluation/worker_set.py", line 139, in __init__
+    self.add_workers(
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/evaluation/worker_set.py", line 490, in add_workers
+    self.foreach_worker(lambda w: w.assert_healthy())
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/evaluation/worker_set.py", line 620, in foreach_worker
+    remote_results = ray.get([w.apply.remote(func) for w in self.remote_workers()])
+ray.exceptions.RayActorError: The actor died because of an error raised in its creation task, [36mray::RolloutWorker.__init__()[39m (pid=1951552, ip=172.18.166.65, repr=<ray.rllib.evaluation.rollout_worker.RolloutWorker object at 0x701f8d3dc8e0>)
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/utils/pre_checks/env.py", line 255, in check_multiagent_environments
+    reset_obs = env.reset()
+  File "/home/catjlx/VectorizedMultiAgentSimulator/vmas/examples/rllib_rd_mappo.py", line 71, in reset
+    return self.env.reset()
+AttributeError: 'VectorEnvWrapper' object has no attribute 'reset'
+
+During handling of the above exception, another exception occurred:
+
+[36mray::RolloutWorker.__init__()[39m (pid=1951552, ip=172.18.166.65, repr=<ray.rllib.evaluation.rollout_worker.RolloutWorker object at 0x701f8d3dc8e0>)
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/evaluation/rollout_worker.py", line 497, in __init__
+    check_env(self.env)
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/utils/pre_checks/env.py", line 88, in check_env
+    raise ValueError(
+ValueError: Traceback (most recent call last):
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/utils/pre_checks/env.py", line 75, in check_env
+    check_multiagent_environments(env)
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/utils/pre_checks/env.py", line 255, in check_multiagent_environments
+    reset_obs = env.reset()
+  File "/home/catjlx/VectorizedMultiAgentSimulator/vmas/examples/rllib_rd_mappo.py", line 71, in reset
+    return self.env.reset()
+AttributeError: 'VectorEnvWrapper' object has no attribute 'reset'
+
+The above error has been found in your environment! We've added a module for checking your custom environments. It may cause your experiment to fail if your environment is not set up correctly. You can disable this behavior by setting `disable_env_checking=True` in your environment config dictionary. You can run the environment checking module standalone by calling ray.rllib.utils.check_env([env]).
+
+During handling of the above exception, another exception occurred:
+
+[36mray::PPO.__init__()[39m (pid=1950979, ip=172.18.166.65, repr=PPO)
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/algorithms/algorithm.py", line 414, in __init__
+    super().__init__(config=config, logger_creator=logger_creator, **kwargs)
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/tune/trainable/trainable.py", line 161, in __init__
+    self.setup(copy.deepcopy(self.config))
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/algorithms/algorithm.py", line 549, in setup
+    raise e.args[0].args[2]
+ValueError: Traceback (most recent call last):
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/utils/pre_checks/env.py", line 75, in check_env
+    check_multiagent_environments(env)
+  File "/home/catjlx/miniconda3/envs/dacon/lib/python3.10/site-packages/ray/rllib/utils/pre_checks/env.py", line 255, in check_multiagent_environments
+    reset_obs = env.reset()
+  File "/home/catjlx/VectorizedMultiAgentSimulator/vmas/examples/rllib_rd_mappo.py", line 71, in reset
+    return self.env.reset()
+AttributeError: 'VectorEnvWrapper' object has no attribute 'reset'
+
+The above error has been found in your environment! We've added a module for checking your custom environments. It may cause your experiment to fail if your environment is not set up correctly. You can disable this behavior by setting `disable_env_checking=True` in your environment config dictionary. You can run the environment checking module standalone by calling ray.rllib.utils.check_env([env]).
+
